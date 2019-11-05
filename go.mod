@@ -1,5 +1,5 @@
-module log
+module github.com/tpgzcyyao/log
 
 go 1.13
 
-require github.com/tpgzcyyao/config v1.0.0 // indirect
+require github.com/tpgzcyyao/config v1.0.1
