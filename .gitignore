@@ -1,5 +1,5 @@
 vendor
 *.swp
 *.swo
-log/*
 go.sum
+log/*
