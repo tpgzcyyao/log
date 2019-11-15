@@ -1,22 +1,22 @@
 # log
-[中文文档](./README_zh.md)
-## I. Introduction
-This is a golang package using for writing log.
-## II. Features
-- Support Fatal, Error, Warn, Info, Debug five log levels.
-- Split log file by size and date.
-- Clear expired log files.
-- Log write method supports passing in multiple parameters of uncertain types.
-## III. Description
-- Download the package.
+[English Document](./README.md)
+## 一、介绍
+这是一个用golang语言实现的记录程序运行日志的包。
+## 二、特性
+- 支持Fatal、Error、Warn、Info、Debug五种级别的日志。
+- 根据文件大小和日期进行分割。
+- 根据日志保留时间配置进行过期日志清除。
+- 日志写入方法支持传入多个不确定类型的参数。
+## 三、使用方法
+- 下载包
 ```
 go get github.com/tpgzcyyao/log
 ```
-- Import the package.
+- 导入包
 ```
 import "github.com/typzcyyao/log"
 ```
-- Example
+- 代码示例
 ```
 logConfig := log.Config{
 	FileName: "/export/log/test.log",
@@ -34,24 +34,24 @@ log.Warn("This is a warn.")
 log.Info("This is an info.")
 log.Debug("This is a debug.")
 ```
-- Output in the log file
+- 输出日志示例
 ```
 2019/11/15 15:57:17.351581 [Fatal] This is a fatal. 123 xxx
 2019/11/15 15:57:17.351588 [Error] This is an error.
 2019/11/15 15:57:17.351595 [Warn] This is a warn.
 2019/11/15 15:57:17.351601 [Info] This is an info.
 ```
-## IV. Config Instructions
+## 四、配置说明
 - log.Config.FileName
-FileName represents the path for log file. It must be completed absolute path.
+日志的文件名，完整的绝对路径，必须配置。
 - log.Config.MaxSize
-MaxSize represents the max size for each log file and the unit is MB. Default max size is 100.
+每个日志文件的最大大小，单位为MB，默认为100。
 - log.Config.ExpireDays
-ExpireDays represents the number of days to keep log. Default config is to keep all log files.
+日志的保留天数，默认全保留。
 - log.Config.LogLevel
-LogLevel represents the lowest level for print log. The value may be fatal, error, warn, info, debug. Default log level is debug.
-## V. Using Config File
-- Code
+打印日志的最低等级，值为fatal、error、warn、info、debug，默认为debug。
+## 五、关联配置文件
+- 代码
 ```
 package main
 
@@ -85,7 +85,7 @@ func main() {
 	log.Debug("This is a debug.")
 }
 ```
-- config file: /export/config/test.conf
+- 配置文件 /export/config/test.conf
 ```
 [log]
 file_name = /export/log/test.log

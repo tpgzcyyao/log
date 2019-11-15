@@ -1,3 +1,6 @@
+// Support fatal, error, warn, info, debug five log levels.
+// Split log file by size and date.
+// Clear expired log files.
 package log
 
 import (
@@ -63,17 +66,20 @@ type Config struct {
 	LogLevel   string
 }
 
-// LoadLogFile initializes Logger struct.
+// LoadLogConfig initializes Logger struct.
 // Load file for writing logs.
 // Execulate file spliting concurrently.
 // Execulate file clearing concurrently.
-func LoadLogFile(conf Config) error {
+func LoadLogConfig(conf Config) error {
 	l = new(Logger)
 	l.config = &Config{
 		FileName:   conf.FileName,
 		MaxSize:    conf.MaxSize,
 		ExpireDays: conf.ExpireDays,
 		LogLevel:   conf.LogLevel,
+	}
+	if l.config.MaxSize <= 0 {
+		l.config.MaxSize = DefaultMaxSize
 	}
 	// init flagTime
 	l.flagTime = time.Now().Format(FlagTimeFmt)
