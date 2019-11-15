@@ -3,3 +3,4 @@ vendor
 *.swo
 go.sum
 log/*
+!log/.gitkeep

@@ -1,8 +1,13 @@
 package log
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"strconv"
+	"sync"
+	"time"
 )
 
 const (
@@ -14,6 +19,14 @@ const (
 )
 
 const (
+	FatalLevelConf = "fatal"
+	ErrorLevelConf = "error"
+	WarnLevelConf  = "warn"
+	InfoLevelConf  = "info"
+	DebugLevelConf = "debug"
+)
+
+const (
 	FatalFlag = "[Fatal]"
 	ErrorFlag = "[Error]"
 	WarnFlag  = "[Warn]"
@@ -22,128 +35,184 @@ const (
 )
 
 const (
-	FlagTimeFmt  = ".20060102.15"
-	ClearTimeFmt = ".20060102."
+	FlagTimeFmt = ".20060102."
 )
 
 const (
-	DefaultMaxSize    = 100 // max size(MB) for one log file
-	DefaultExpireDays = 7   // reserved days for log files
-	DefaultCheckDays  = 1
-	DefaultLogLeval   = "debug"
+	DefaultMaxSize   = 100 // max size(MB) for one log file
+	DefaultCheckDays = 1
+	DefaultLogLeval  = "debug"
 )
 
-var logger *log.Logger
+var l *Logger
 
-var config *Config
-
-var logLevel int
+type Logger struct {
+	logger    *log.Logger
+	file      *os.File
+	config    *Config
+	logLevel  int
+	mutex     sync.Mutex
+	flagTime  string
+	flagSplit int
+}
 
 type Config struct {
-	File       string
+	FileName   string
 	MaxSize    int
 	ExpireDays int
-	CheckDays  int
 	LogLevel   string
 }
 
-/**
- * load config file
- */
+// LoadLogFile initializes Logger struct.
+// Load file for writing logs.
+// Execulate file spliting concurrently.
+// Execulate file clearing concurrently.
 func LoadLogFile(conf Config) error {
-	config = &Config{
-		File:       conf.File,
+	l = new(Logger)
+	l.config = &Config{
+		FileName:   conf.FileName,
 		MaxSize:    conf.MaxSize,
 		ExpireDays: conf.ExpireDays,
-		CheckDays:  conf.CheckDays,
 		LogLevel:   conf.LogLevel,
 	}
+	// init flagTime
+	l.flagTime = time.Now().Format(FlagTimeFmt)
+	l.flagSplit = 0
 	// init log level
-	setLogLevel(config.LogLevel)
+	SetLogLevel(l.config.LogLevel)
 	// open log file
-	file, err := os.OpenFile(config.File, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
+	var err error
+	l.file, err = os.OpenFile(l.config.FileName, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
 	if err != nil {
 		return err
 	}
 	// init logger
-	logger = log.New(file, "", log.LstdFlags|log.Lmicroseconds)
+	l.logger = log.New(l.file, "", log.LstdFlags|log.Lmicroseconds)
+	// split log file
+	go splitLogFile()
+	// clear old file
+	if l.config.ExpireDays > 0 {
+		go clearLogFile()
+	}
 	return nil
 }
 
-/**
- * write log
- */
+// WriteLog is the real entry for writing log.
 func writeLog(flag interface{}, detail ...interface{}) {
 	detail = append([]interface{}{flag}, detail...)
-	logger.Println(detail...)
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	// write log
+	l.logger.Println(detail...)
 }
 
-/**
- * write Fatal log
- */
+// Fatal writes logs in fatal level.
 func Fatal(detail ...interface{}) {
-	if logLevel < FatalLevel {
+	if l.logLevel < FatalLevel {
 		return
 	}
 	writeLog(FatalFlag, detail...)
 }
 
-/**
- * write Error log
- */
+// Error writes logs in error level.
 func Error(detail ...interface{}) {
-	if logLevel < ErrorLevel {
+	if l.logLevel < ErrorLevel {
 		return
 	}
 	writeLog(ErrorFlag, detail...)
 }
 
-/**
- * write Warn log
- */
+// Warn writes logs in warn level.
 func Warn(detail ...interface{}) {
-	if logLevel < WarnLevel {
+	if l.logLevel < WarnLevel {
 		return
 	}
 	writeLog(WarnFlag, detail...)
 }
 
-/**
- * write Info log
- */
+// Info writes logs in info level.
 func Info(detail ...interface{}) {
-	if logLevel < InfoLevel {
+	if l.logLevel < InfoLevel {
 		return
 	}
 	writeLog(InfoFlag, detail...)
 }
 
-/**
- * write Debug log
- */
+// Debug writes logs in debug level.
 func Debug(detail ...interface{}) {
-	if logLevel < DebugLevel {
+	if l.logLevel < DebugLevel {
 		return
 	}
 	writeLog(DebugFlag, detail...)
 }
 
-/**
- * set log level
- */
-func setLogLevel(level string) {
+// SetLogLevel sets log level for writing into file.
+func SetLogLevel(level string) {
 	switch level {
-	case "fatal":
-		logLevel = 0
-	case "error":
-		logLevel = 1
-	case "warn":
-		logLevel = 2
-	case "info":
-		logLevel = 3
-	case "debug":
-		logLevel = 4
+	case FatalLevelConf:
+		l.logLevel = FatalLevel
+	case ErrorLevelConf:
+		l.logLevel = ErrorLevel
+	case WarnLevelConf:
+		l.logLevel = WarnLevel
+	case InfoLevelConf:
+		l.logLevel = InfoLevel
+	case DebugLevelConf:
+		l.logLevel = DebugLevel
 	default:
-		logLevel = 4
+		l.logLevel = DebugLevel
+	}
+}
+
+// splitLogFile is used for splitting log file.
+// Split file when time is next day.
+// Split file when size is bigger than l.config.MaxSize.
+func splitLogFile() {
+	for {
+		time.Sleep(time.Duration(1) * time.Second)
+		nowTime := time.Now().Format(FlagTimeFmt)
+		// split by time
+		if l.flagTime != nowTime {
+			l.mutex.Lock()
+			fileBak := l.config.FileName + l.flagTime + strconv.Itoa(l.flagSplit)
+			l.flagTime = nowTime
+			l.flagSplit = 0
+			_ = os.Rename(l.config.FileName, fileBak)
+			l.file, _ = os.OpenFile(l.config.FileName, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
+			l.logger.SetOutput(l.file)
+			l.mutex.Unlock()
+		} else {
+			// split by size
+			fileInfo, err := l.file.Stat()
+			if err != nil {
+				fmt.Println("get fileInfo of log file failed.", err)
+				continue
+			}
+			if fileInfo.Size() >= int64(l.config.MaxSize)*1024*1024 {
+				l.mutex.Lock()
+				fileBak := l.config.FileName + l.flagTime + strconv.Itoa(l.flagSplit)
+				l.flagSplit++
+				_ = os.Rename(l.config.FileName, fileBak)
+				l.file, _ = os.OpenFile(l.config.FileName, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
+				l.logger.SetOutput(l.file)
+				l.mutex.Unlock()
+			}
+		}
+	}
+}
+
+// clearLogFile is used for clear expired log files.
+// Clear logs before l.config.ExpireDays and delete DefaultCheckDays files.
+func clearLogFile() {
+	for {
+		for i := l.config.ExpireDays + 1; i < l.config.ExpireDays+DefaultCheckDays+1; i++ {
+			timeFmt := time.Now().Add(-time.Hour * time.Duration(24*i)).Format(FlagTimeFmt)
+			fileTmp := l.config.FileName + timeFmt + "*"
+			files, _ := filepath.Glob(fileTmp)
+			for _, fileName := range files {
+				os.Remove(fileName)
+			}
+		}
+		time.Sleep(time.Duration(1) * time.Hour)
 	}
 }
