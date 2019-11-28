@@ -51,13 +51,12 @@ const (
 var l *Logger
 
 type Logger struct {
-    logger    *log.Logger
-    file      *os.File
-    config    *Config
-    logLevel  int
-    mutex     sync.Mutex
-    flagTime  string
-    flagSplit int
+    logger   *log.Logger
+    file     *os.File
+    config   *Config
+    logLevel int
+    mutex    sync.Mutex
+    flagTime string
 }
 
 type Config struct {
@@ -84,7 +83,6 @@ func LoadLogConfig(conf Config) error {
     }
     // init flagTime
     l.flagTime = time.Now().Format(FlagTimeFmt)
-    l.flagSplit = setFlagSplit()
     // init log level
     SetLogLevel(l.config.LogLevel)
     // open log file
@@ -181,9 +179,8 @@ func splitLogFile() {
         // split by time
         if l.flagTime != nowTime {
             l.mutex.Lock()
-            fileBak := l.config.FileName + l.flagTime + strconv.Itoa(l.flagSplit)
+            fileBak := l.config.FileName + l.flagTime + strconv.Itoa(getFlagSplit())
             l.flagTime = nowTime
-            l.flagSplit = setFlagSplit()
             _ = os.Rename(l.config.FileName, fileBak)
             l.file, _ = os.OpenFile(l.config.FileName, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
             l.logger.SetOutput(l.file)
@@ -197,9 +194,8 @@ func splitLogFile() {
             }
             if fileInfo.Size() >= int64(l.config.MaxSize)*1024*1024 {
                 l.mutex.Lock()
-                fileBak := l.config.FileName + l.flagTime + strconv.Itoa(l.flagSplit)
+                fileBak := l.config.FileName + l.flagTime + strconv.Itoa(getFlagSplit())
                 _ = os.Rename(l.config.FileName, fileBak)
-                l.flagSplit = setFlagSplit()
                 l.file, _ = os.OpenFile(l.config.FileName, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
                 l.logger.SetOutput(l.file)
                 l.mutex.Unlock()
@@ -224,8 +220,8 @@ func clearLogFile() {
     }
 }
 
-// setFlagSplit is used for set the suffix of the split log file
-func setFlagSplit() int {
+// getFlagSplit is used for get the suffix of the split log file
+func getFlagSplit() int {
     suffix := 0
     prefix := l.config.FileName + l.flagTime
     fileTmp := prefix + "*"
