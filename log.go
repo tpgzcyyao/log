@@ -85,8 +85,18 @@ func LoadLogConfig(conf Config) error {
     l.flagTime = time.Now().Format(FlagTimeFmt)
     // init log level
     SetLogLevel(l.config.LogLevel)
-    // open log file
+    // mkdir
     var err error
+    var dir string
+    dir, err = filepath.Abs(filepath.Dir(l.config.FileName))
+    if err != nil {
+        return err
+    }
+    err = os.MkdirAll(dir, os.ModePerm)
+    if err != nil {
+        return err
+    }
+    // open log file
     l.file, err = os.OpenFile(l.config.FileName, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
     if err != nil {
         return err
