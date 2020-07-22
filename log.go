@@ -45,7 +45,8 @@ const (
 const (
     DefaultMaxSize   = 100 // max size(MB) for one log file
     DefaultCheckDays = 1
-    DefaultLogLeval  = "debug"
+    DefaultLogLevel  = "debug"
+    DefaultTotalSize = 1024 // total size(MB) for all log files
 )
 
 var l *Logger
@@ -64,12 +65,13 @@ type Config struct {
     MaxSize    int
     ExpireDays int
     LogLevel   string
+    TotalSize  int64
 }
 
 // LoadLogConfig initializes Logger struct.
 // Load file for writing logs.
-// Execulate file spliting concurrently.
-// Execulate file clearing concurrently.
+// Execute file splitting concurrently.
+// Execute file clearing concurrently.
 func LoadLogConfig(conf Config) error {
     l = new(Logger)
     l.config = &Config{
@@ -77,6 +79,7 @@ func LoadLogConfig(conf Config) error {
         MaxSize:    conf.MaxSize,
         ExpireDays: conf.ExpireDays,
         LogLevel:   conf.LogLevel,
+        TotalSize:  conf.TotalSize,
     }
     if l.config.MaxSize <= 0 {
         l.config.MaxSize = DefaultMaxSize
@@ -105,9 +108,13 @@ func LoadLogConfig(conf Config) error {
     l.logger = log.New(l.file, "", log.LstdFlags|log.Lmicroseconds)
     // split log file
     go splitLogFile()
-    // clear old file
+    // clear old files
     if l.config.ExpireDays > 0 {
         go clearLogFile()
+    }
+    // clear files when total size is too big
+    if l.config.TotalSize > 0 {
+        go clearLogFilesByTotalSize()
     }
     return nil
 }
@@ -227,6 +234,39 @@ func clearLogFile() {
             }
         }
         time.Sleep(time.Duration(1) * time.Hour)
+    }
+}
+
+// clearLogFileByTotalSize is used for clear log files when total size is too big.
+// Delete oldest log files.
+func clearLogFilesByTotalSize() {
+    for {
+        fileTmp := l.config.FileName + ".*"
+        files, _ := filepath.Glob(fileTmp)
+        fileInfoMap := make(map[string]os.FileInfo, 0)
+        var totalSize int64 = 0
+        for _, fileName := range files {
+            fileInfo, err := os.Stat(fileName)
+            if err != nil {
+                continue
+            }
+            totalSize += fileInfo.Size()
+            fileInfoMap[fileName] = fileInfo
+        }
+        for totalSize >= (l.config.TotalSize-(int64)(l.config.MaxSize))*1024*1024 && len(fileInfoMap) > 0 {
+            key := ""
+            timeMark := time.Now()
+            for k, v := range fileInfoMap {
+                if v.ModTime().UnixNano() < timeMark.UnixNano() {
+                    timeMark = v.ModTime()
+                    key = k
+                }
+            }
+            totalSize -= fileInfoMap[key].Size()
+            delete(fileInfoMap, key)
+            os.Remove(key)
+        }
+        time.Sleep(time.Duration(1) * time.Minute)
     }
 }
 

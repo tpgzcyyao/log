@@ -13,7 +13,7 @@ type Config struct {
 
 func main() {
     conf := new(Config)
-    err := (new(config.Config)).LoadConfig("/home/liyang/gopath/src/log/test/test.conf", conf)
+    err := (new(config.Config)).LoadConfig("../test/test.conf", conf)
     if err != nil {
         fmt.Println(err)
         return
@@ -28,4 +28,7 @@ func main() {
     log.Warn("This is a warn.")
     log.Info("This is a info.")
     log.Debug("This is a debug.")
+    for {
+        log.Info("This is for test total_size.")
+    }
 }

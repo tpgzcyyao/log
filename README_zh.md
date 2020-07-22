@@ -23,6 +23,7 @@ logConfig := log.Config{
 	MaxSize: 200,
 	ExpireDays: 7,
 	LogLevel: "info",
+	TotalSize: 1024,
 }
 err := LoadLogConfig(config)
 if err != nil {
@@ -50,6 +51,8 @@ log.Debug("This is a debug.")
 日志的保留天数，默认全保留。
 - log.Config.LogLevel
 打印日志的最低等级，值为fatal、error、warn、info、debug，默认为debug。
+- log.Config.TotalSize
+所有日志文件的总大小，单位为MB。
 ## 五、关联配置文件
 - 代码
 ```
@@ -92,4 +95,5 @@ file_name = /export/log/test.log
 max_size = 200
 expire_days = 7
 log_level = info
+total_size = 1024
 ```

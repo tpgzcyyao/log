@@ -23,6 +23,7 @@ logConfig := log.Config{
 	MaxSize: 200,
 	ExpireDays: 7,
 	LogLevel: "info",
+	TotalSize: 1024,
 }
 err := LoadLogConfig(config)
 if err != nil {
@@ -50,6 +51,8 @@ MaxSize represents the max size for each log file and the unit is MB. Default ma
 ExpireDays represents the number of days to keep log. Default config is to keep all log files.
 - log.Config.LogLevel
 LogLevel represents the lowest level for print log. The value may be fatal, error, warn, info, debug. Default log level is debug.
+- log.Config.TotalSize
+TotalSize represents the total size for all log files and the unit is MB.
 ## V. Using Config File
 - Code
 ```
@@ -92,4 +95,5 @@ file_name = /export/log/test.log
 max_size = 200
 expire_days = 7
 log_level = info
+total_size = 1024
 ```
