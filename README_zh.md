@@ -37,7 +37,7 @@ log.Debug("This is a debug.")
 ```
 - 输出日志示例
 ```
-2019/11/15 15:57:17.351581 [Fatal] This is a fatal. 123 xxx
+2019/11/15 1:5:57:17.351581 [Fatal] This is a fatal. 123 xxx
 2019/11/15 15:57:17.351588 [Error] This is an error.
 2019/11/15 15:57:17.351595 [Warn] This is a warn.
 2019/11/15 15:57:17.351601 [Info] This is an info.

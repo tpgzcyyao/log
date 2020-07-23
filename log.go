@@ -61,11 +61,11 @@ type Logger struct {
 }
 
 type Config struct {
-    FileName   string
-    MaxSize    int
-    ExpireDays int
-    LogLevel   string
-    TotalSize  int64
+    FileName   string `json:"file_name"`
+    MaxSize    int    `json:"max_size"`
+    ExpireDays int    `json:"expire_days"`
+    LogLevel   string `json:"log_level"`
+    TotalSize  int64  `json:"total_size"`
 }
 
 // LoadLogConfig initializes Logger struct.
