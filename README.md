@@ -16,7 +16,7 @@ go get github.com/tpgzcyyao/log
 ```
 import "github.com/typzcyyao/log"
 ```
-- Example
+- Example 1
 ```
 logConfig := log.Config{
 	FileName: "/export/log/test.log",
@@ -42,6 +42,28 @@ log.Debug("This is a debug.")
 2019/11/15 15:57:17.351595 [Warn] This is a warn.
 2019/11/15 15:57:17.351601 [Info] This is an info.
 ```
+- Example 2
+```
+logConfig := log.Config{
+    StdOutput: true,
+}
+err := LoadLogConfig(config)
+if err != nil {
+	panic(err)
+}
+log.Fatal("This is a fatal.", 123, "xxx")
+log.Error("This is an error.")
+log.Warn("This is a warn.")
+log.Info("This is an info.")
+log.Debug("This is a debug.")
+```
+- Output in the screen
+```
+2019/11/15 15:57:17.351581 [Fatal] This is a fatal. 123 xxx
+2019/11/15 15:57:17.351588 [Error] This is an error.
+2019/11/15 15:57:17.351595 [Warn] This is a warn.
+2019/11/15 15:57:17.351601 [Info] This is an info.
+```
 ## IV. Config Instructions
 - log.Config.FileName
 FileName represents the path for log file. It must be completed absolute path.
@@ -53,6 +75,8 @@ ExpireDays represents the number of days to keep log. Default config is to keep 
 LogLevel represents the lowest level for print log. The value may be fatal, error, warn, info, debug. Default log level is debug.
 - log.Config.TotalSize
 TotalSize represents the total size for all log files and the unit is MB.
+- log.Config.StdOutput
+StdOutput represents the logs will be printed to screen like stdout and stderr.
 ## V. Using Config File
 - Code
 ```

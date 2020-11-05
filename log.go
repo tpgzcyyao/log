@@ -66,6 +66,7 @@ type Config struct {
     ExpireDays int    `json:"expire_days"`
     LogLevel   string `json:"log_level"`
     TotalSize  int64  `json:"total_size"`
+    StdOutput  bool   `json:"std_output"`
 }
 
 // LoadLogConfig initializes Logger struct.
@@ -80,6 +81,7 @@ func LoadLogConfig(conf Config) error {
         ExpireDays: conf.ExpireDays,
         LogLevel:   conf.LogLevel,
         TotalSize:  conf.TotalSize,
+        StdOutput:  conf.StdOutput,
     }
     if l.config.MaxSize <= 0 {
         l.config.MaxSize = DefaultMaxSize
@@ -88,6 +90,11 @@ func LoadLogConfig(conf Config) error {
     l.flagTime = time.Now().Format(FlagTimeFmt)
     // init log level
     SetLogLevel(l.config.LogLevel)
+    // std out
+    if l.config.StdOutput {
+        l.logger = log.New(os.Stderr, "", log.LstdFlags|log.Lmicroseconds)
+        return nil
+    }
     // mkdir
     var err error
     var dir string

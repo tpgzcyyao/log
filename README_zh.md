@@ -16,7 +16,7 @@ go get github.com/tpgzcyyao/log
 ```
 import "github.com/typzcyyao/log"
 ```
-- 代码示例
+- 代码示例 1
 ```
 logConfig := log.Config{
 	FileName: "/export/log/test.log",
@@ -42,6 +42,28 @@ log.Debug("This is a debug.")
 2019/11/15 15:57:17.351595 [Warn] This is a warn.
 2019/11/15 15:57:17.351601 [Info] This is an info.
 ```
+- 代码示例 2
+```
+logConfig := log.Config{
+    StdOutput: true,
+}
+err := LoadLogConfig(config)
+if err != nil {
+	panic(err)
+}
+log.Fatal("This is a fatal.", 123, "xxx")
+log.Error("This is an error.")
+log.Warn("This is a warn.")
+log.Info("This is an info.")
+log.Debug("This is a debug.")
+```
+- 输出日志示例(打印到屏幕)
+```
+2019/11/15 1:5:57:17.351581 [Fatal] This is a fatal. 123 xxx
+2019/11/15 15:57:17.351588 [Error] This is an error.
+2019/11/15 15:57:17.351595 [Warn] This is a warn.
+2019/11/15 15:57:17.351601 [Info] This is an info.
+```
 ## 四、配置说明
 - log.Config.FileName
 日志的文件名，完整的绝对路径，必须配置。
@@ -53,6 +75,8 @@ log.Debug("This is a debug.")
 打印日志的最低等级，值为fatal、error、warn、info、debug，默认为debug。
 - log.Config.TotalSize
 所有日志文件的总大小，单位为MB。
+- log.Config.StdOutput
+所有日志打印到标准输出。
 ## 五、关联配置文件
 - 代码
 ```
