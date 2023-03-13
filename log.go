@@ -72,12 +72,15 @@ type Config struct {
     StdOutput  bool   `json:"std_output"`
 }
 
+func init() {
+    l = new(Logger)
+}
+
 // LoadLogConfig initializes Logger struct.
 // Load file for writing logs.
 // Execute file splitting concurrently.
 // Execute file clearing concurrently.
 func LoadLogConfig(conf Config) error {
-    l = new(Logger)
     l.config = &Config{
         FileName:   conf.FileName,
         MaxSize:    conf.MaxSize,
@@ -121,17 +124,13 @@ func LoadLogConfig(conf Config) error {
         go splitLogFile()
     })
     // clear old files
-    if l.config.ExpireDays > 0 {
-        onceClear.Do(func() {
-            go clearLogFile()
-        })
-    }
+    onceClear.Do(func() {
+        go clearLogFile()
+    })
     // clear files when total size is too big
-    if l.config.TotalSize > 0 {
-        onceClearByTotalSizes.Do(func() {
-            go clearLogFilesByTotalSize()
-        })
-    }
+    onceClearByTotalSizes.Do(func() {
+        go clearLogFilesByTotalSize()
+    })
     return nil
 }
 
@@ -218,6 +217,7 @@ func splitLogFile() {
             l.file, _ = os.OpenFile(l.config.FileName, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
             l.logger.SetOutput(l.file)
             l.mutex.Unlock()
+            fmt.Println(time.Now().Format(time.RFC3339), "Split log file by time:", fileBak)
         } else {
             // split by size
             fileInfo, err := l.file.Stat()
@@ -225,13 +225,18 @@ func splitLogFile() {
                 fmt.Println("get fileInfo of log file failed.", err)
                 continue
             }
-            if fileInfo.Size() >= int64(l.config.MaxSize)*1024*1024 {
+            maxSize := l.config.MaxSize
+            if maxSize <= 0 {
+                maxSize = DefaultMaxSize
+            }
+            if fileInfo.Size() >= int64(maxSize)*1024*1024 {
                 l.mutex.Lock()
                 fileBak := l.config.FileName + l.flagTime + strconv.Itoa(getFlagSplit())
                 _ = os.Rename(l.config.FileName, fileBak)
                 l.file, _ = os.OpenFile(l.config.FileName, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
                 l.logger.SetOutput(l.file)
                 l.mutex.Unlock()
+                fmt.Println(time.Now().Format(time.RFC3339), "Split log file by size:", fileBak)
             }
         }
     }
@@ -241,12 +246,17 @@ func splitLogFile() {
 // Clear logs before l.config.ExpireDays and delete DefaultCheckDays files.
 func clearLogFile() {
     for {
-        for i := l.config.ExpireDays + 1; i < l.config.ExpireDays+DefaultCheckDays+1; i++ {
-            timeFmt := time.Now().Add(-time.Hour * time.Duration(24*i)).Format(FlagTimeFmt)
-            fileTmp := l.config.FileName + timeFmt + "*"
-            files, _ := filepath.Glob(fileTmp)
-            for _, fileName := range files {
-                os.Remove(fileName)
+        expireDays := l.config.ExpireDays
+        fileName := l.config.FileName
+        if expireDays > 0 {
+            for i := expireDays + 1; i < expireDays+DefaultCheckDays+1; i++ {
+                timeFmt := time.Now().Add(-time.Hour * time.Duration(24*i)).Format(FlagTimeFmt)
+                fileTmp := fileName + timeFmt + "*"
+                files, _ := filepath.Glob(fileTmp)
+                for _, fileName := range files {
+                    os.Remove(fileName)
+                    fmt.Println(time.Now().Format(time.RFC3339), "Remove file by time:", fileName)
+                }
             }
         }
         time.Sleep(time.Duration(1) * time.Hour)
@@ -257,30 +267,39 @@ func clearLogFile() {
 // Delete oldest log files.
 func clearLogFilesByTotalSize() {
     for {
-        fileTmp := l.config.FileName + ".*"
-        files, _ := filepath.Glob(fileTmp)
-        fileInfoMap := make(map[string]os.FileInfo, 0)
-        var totalSize int64 = 0
-        for _, fileName := range files {
-            fileInfo, err := os.Stat(fileName)
-            if err != nil {
-                continue
-            }
-            totalSize += fileInfo.Size()
-            fileInfoMap[fileName] = fileInfo
+        totalSize := l.config.TotalSize
+        maxSize := l.config.MaxSize
+        if maxSize <= 0 {
+            maxSize = DefaultMaxSize
         }
-        for totalSize >= (l.config.TotalSize-(int64)(l.config.MaxSize))*1024*1024 && len(fileInfoMap) > 0 {
-            key := ""
-            timeMark := time.Now()
-            for k, v := range fileInfoMap {
-                if v.ModTime().UnixNano() < timeMark.UnixNano() {
-                    timeMark = v.ModTime()
-                    key = k
+        fileName := l.config.FileName
+        if totalSize > 0 {
+            fileTmp := fileName + ".*"
+            files, _ := filepath.Glob(fileTmp)
+            fileInfoMap := make(map[string]os.FileInfo, 0)
+            var totalSizeReal int64 = 0
+            for _, fileName := range files {
+                fileInfo, err := os.Stat(fileName)
+                if err != nil {
+                    continue
                 }
+                totalSizeReal += fileInfo.Size()
+                fileInfoMap[fileName] = fileInfo
             }
-            totalSize -= fileInfoMap[key].Size()
-            delete(fileInfoMap, key)
-            os.Remove(key)
+            for totalSizeReal >= (totalSize-(int64)(maxSize))*1024*1024 && len(fileInfoMap) > 0 {
+                key := ""
+                timeMark := time.Now()
+                for k, v := range fileInfoMap {
+                    if v.ModTime().UnixNano() < timeMark.UnixNano() {
+                        timeMark = v.ModTime()
+                        key = k
+                    }
+                }
+                totalSizeReal -= fileInfoMap[key].Size()
+                delete(fileInfoMap, key)
+                os.Remove(key)
+                fmt.Println(time.Now().Format(time.RFC3339), "Remove file by size:", key)
+            }
         }
         time.Sleep(time.Duration(1) * time.Minute)
     }
