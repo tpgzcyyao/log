@@ -50,6 +50,9 @@ const (
 )
 
 var l *Logger
+var onceSplit sync.Once
+var onceClear sync.Once
+var onceClearByTotalSizes sync.Once
 
 type Logger struct {
     logger   *log.Logger
@@ -114,14 +117,20 @@ func LoadLogConfig(conf Config) error {
     // init logger
     l.logger = log.New(l.file, "", log.LstdFlags|log.Lmicroseconds)
     // split log file
-    go splitLogFile()
+    onceSplit.Do(func() {
+        go splitLogFile()
+    })
     // clear old files
     if l.config.ExpireDays > 0 {
-        go clearLogFile()
+        onceClear.Do(func() {
+            go clearLogFile()
+        })
     }
     // clear files when total size is too big
     if l.config.TotalSize > 0 {
-        go clearLogFilesByTotalSize()
+        onceClearByTotalSizes.Do(func() {
+            go clearLogFilesByTotalSize()
+        })
     }
     return nil
 }
